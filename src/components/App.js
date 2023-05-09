@@ -4,11 +4,15 @@ import Login from './Login.js';
 import Register from './Register.js'
 import MyProfile from './MyProfile.js'
 import ProtectedRoute from './ProtectedRoute.js';
-import * as auth from '../utils/apiAuth.js';
+import api from '../utils/Api.js';
+import InfoTooltrip from './InfoTooltip.js';
 
 function App() {
   const [loggedIn, setLoggedIn] = React.useState(false);
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [isAuthPopupOpen, setAuthPopupOpen] = React.useState(false);
+  const [isAuthStatus, setAuthStatus] = React.useState(false);
 
   React.useEffect(() => {
     tokenCheck();
@@ -17,10 +21,10 @@ function App() {
   function tokenCheck() {
     const jwt = localStorage.getItem('jwt');
     if (jwt) {
-      auth.getContent(jwt)
+      api.getContent(jwt)
         .then((res) => {
           if (res) {
-            handleLogin();
+            setLoggedIn(true);
             navigate("/profile", { replace: true })
           }
         }).catch(err => {
@@ -29,8 +33,56 @@ function App() {
     }
   }
 
-  function handleLogin() {
-    setLoggedIn(true);
+  function closePopupAuth() {
+    setAuthPopupOpen(false);
+  }
+
+  function handleSubmitLogin(email, password, onLogin) {
+    if (!email || !password) {
+      setAuthPopupOpen(true);
+      setAuthStatus(false);
+      return;
+    }
+
+    setIsLoading(true);
+    api.authorize(email, password)
+      .then((data) => {
+        if (data.token) {
+          onLogin(data.token);
+          return data;
+        }
+      })
+      .then((data) => {
+        if (data.token) {
+          setLoggedIn(true);
+          navigate('/', { replace: true });
+        }
+      })
+      .catch(err => {
+        setAuthPopupOpen(true);
+        setAuthStatus(false);
+        console.log(err);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }
+
+  function handleSubmitRegister(email, password) {
+    setIsLoading(true);
+    api.register(email, password)
+      .then(() => {
+        setAuthStatus(true);
+        setAuthPopupOpen(true);
+      })
+      .catch(err => {
+        console.log(err);
+        setAuthStatus(false);
+        setAuthPopupOpen(true);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }
 
   return (
@@ -40,9 +92,11 @@ function App() {
         <Routes>
           <Route path="/" element={<ProtectedRoute element={loggedIn ? MyProfile : Login} loggedIn={loggedIn} />} />
           <Route path="/profile" element={<ProtectedRoute element={MyProfile} loggedIn={loggedIn} />} />
-          <Route path="/sign-in" element={<Login login={handleLogin} />} />
-          <Route path="/sign-up" element={<Register />} />
+          <Route path="/sign-in" element={<Login handleSubmit={handleSubmitLogin} isLoading={isLoading} />} />
+          <Route path="/sign-up" element={<Register handleSubmit={handleSubmitRegister} isLoading={isLoading} />} />
         </Routes>
+
+        <InfoTooltrip isOpen={isAuthPopupOpen} status={isAuthStatus} isClose={closePopupAuth} name="auth" />
       </div>
     </div>
 

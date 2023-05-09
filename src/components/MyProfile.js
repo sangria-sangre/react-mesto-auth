@@ -2,11 +2,7 @@ import React from 'react';
 import api from '../utils/Api.js';
 import Main from './Main.js';
 import Footer from './Footer.js';
-import FormValidator from '../utils/FormValidator.js';
 import Header from './Header.js'
-import * as auth from '../utils/apiAuth.js';
-
-import { validationConfig} from '../utils/const.js';
 
 import PopupWithForm from './PopupWithForm.js';
 import EditProfilePopup from './EditProfilePopup.js';
@@ -26,18 +22,6 @@ function MyProfile() {
     const [cards, setCards] = React.useState([]);
     const [isLoading, setIsLoading] = React.useState(false);
     const [userEmail, setUserEmail] = React.useState('');
-    const formValidators = {}
-    const enableValidation = (config) => {
-        const formList = Array.from(document.querySelectorAll(config.formSelector))
-        formList.forEach((formElement) => {
-            const validator = new FormValidator(config, formElement);
-            const formName = formElement.getAttribute('name');
-            formValidators[formName] = validator;
-            validator.enableValidation();
-        });
-    };
-
-    enableValidation(validationConfig);
 
     React.useEffect(() => {
         api.getAllData()
@@ -63,24 +47,24 @@ function MyProfile() {
 
     React.useEffect(() => {
         const jwt = localStorage.getItem('jwt');
-        auth.getContent(jwt)
+        api.getContent(jwt)
             .then((res) => {
                 setUserEmail(res.data.email);
             })
+            .catch(err => {
+                console.log(err);
+            });
     }, [])
 
     function handleEditAvatarClick() {
-        formValidators['avatar-update'].resetValidation();
         setAvatarPopupOpen(true);
     }
 
     function handleEditProfileClick() {
-        formValidators['profile'].resetValidation();
         setProfilePopupOpen(true);
     }
 
     function handleAddPlaceClick() {
-        formValidators['item'].resetValidation();
         setPlacePopupOpen(true);
     }
 
@@ -98,17 +82,24 @@ function MyProfile() {
     function handleCardLike(card) {
         const isLiked = card.likes.some(i => i._id === currentUser._id);
 
-        api.changeLikeCardStatus(card._id, !isLiked).then((newCard) => {
-            setCards((state) => state.map((c) => c._id === card._id ? newCard : c));
-        })
+        api.changeLikeCardStatus(card._id, !isLiked)
+            .then((newCard) => {
+                setCards((state) => state.map((c) => c._id === card._id ? newCard : c));
+            })
             .catch((err) => {
                 console.log(err);
             });
     }
 
     function handleCardDelete(card) {
-        api.deleteCard(card._id);
-        setCards((state) => state.filter((c) => c._id !== card._id));
+        api.deleteCard(card._id)
+            .then(() => {
+                setCards((state) => state.filter((c) => c._id !== card._id));
+            })
+            .catch((err) => {
+                console.log(err);
+            });
+
     }
 
     function handleUpdateUser(data) {
